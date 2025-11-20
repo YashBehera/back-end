@@ -1,24 +1,66 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ImageModal } from "./image-modal";
 import type { GeneratedWorkoutPlan, Exercise } from "@shared/schema";
+import { Button } from "./ui/button";
+import { Loader2, RefreshCw, Volume2, StopCircle, Download } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
 
 interface WorkoutPlanViewProps {
   plan: GeneratedWorkoutPlan;
+  onRegenerate: () => void;
+  isGenerating: boolean;
 }
 
-export function WorkoutPlanView({ plan }: WorkoutPlanViewProps) {
+export function WorkoutPlanView({ plan, onRegenerate, isGenerating }: WorkoutPlanViewProps) {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useReactToPrint({
+    content: () => contentRef.current,
+    documentTitle: "My-Fitness-Plan",
+  } as any);
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    // Construct the text to read
+    const textToRead = `Here is your workout plan overview. ${plan.overview}. For Day 1, you have ${plan.weeklyPlan[0].exercises.length} exercises...`; // You can expand this logic
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.onend = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  };
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button variant="outline" onClick={handlePrint}>
+          <Download className="mr-2 h-4 w-4" /> Export PDF
+        </Button>
+      </div>
+
+      <div className="space-y-6" ref={contentRef}>
         {/* Overview */}
         <Card>
-          <CardHeader>
-            <CardTitle className="font-heading">Your Personalized Workout Plan</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Your Workout Plan</CardTitle>
+            <Button variant="outline" size="sm" onClick={onRegenerate} disabled={isGenerating}>
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Regenerate
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleSpeak}>
+              {isSpeaking ? <StopCircle className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </Button>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground leading-relaxed">{plan.overview}</p>

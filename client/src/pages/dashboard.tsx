@@ -23,12 +23,12 @@ export default function Dashboard() {
   useEffect(() => {
     const profile = getProfile();
     const id = getProfileId();
-    
+
     if (!profile || !id) {
       setLocation("/onboarding");
       return;
     }
-    
+
     setUserProfile(profile);
     setProfileId(id);
   }, [setLocation]);
@@ -43,6 +43,20 @@ export default function Dashboard() {
       return response.json();
     } : undefined,
     enabled: !!profileId,
+  });
+
+  const { data: motivation } = useQuery<{ quote: string; author: string } | null>({
+    queryKey: ["motivation"],
+    queryFn: async () => {
+      if (!userProfile) return null;
+      const res = await apiRequest("POST", "/api/motivation", {
+        name: userProfile.name,
+        fitnessGoal: userProfile.fitnessGoal,
+      });
+      return res.json();
+    },
+    enabled: !!userProfile,
+    staleTime: 1000 * 60 * 60 * 24, // Cache for 24 hours so it doesn't change on every refresh
   });
 
   const { data: dietPlan, isLoading: dietLoading } = useQuery<GeneratedDietPlan>({
@@ -140,6 +154,16 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        {motivation && (
+          <Card className="mb-8 bg-primary/5 border-primary/20">
+            <CardContent className="p-6 text-center">
+              <blockquote className="text-xl font-heading italic text-primary">
+                "{motivation.quote}"
+              </blockquote>
+              <p className="text-sm text-muted-foreground mt-2">— {motivation.author}</p>
+            </CardContent>
+          </Card>
+        )}
         {/* Stats Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -242,7 +266,11 @@ export default function Dashboard() {
             )}
 
             {hasWorkoutPlan && workoutPlan && (
-              <WorkoutPlanView plan={workoutPlan as GeneratedWorkoutPlan} />
+              <WorkoutPlanView 
+              plan={workoutPlan} 
+              onRegenerate={() => generateWorkoutMutation.mutate()} 
+              isGenerating={generateWorkoutMutation.isPending} 
+            />
             )}
           </TabsContent>
 

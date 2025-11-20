@@ -15,6 +15,8 @@ export const userProfiles = pgTable("user_profiles", {
   fitnessLevel: text("fitness_level").notNull(),
   workoutLocation: text("workout_location").notNull(),
   dietaryPreference: text("dietary_preference").notNull(),
+  medicalHistory: text("medical_history"),
+  stressLevel: text("stress_level"),
 });
 
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({

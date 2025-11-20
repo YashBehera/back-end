@@ -42,23 +42,31 @@ export default function Onboarding() {
       fitnessLevel: "",
       workoutLocation: "",
       dietaryPreference: "",
+      medicalHistory: "",
+      stressLevel: "",
     },
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
-      
+
       // Save profile locally first
       saveProfile(data);
-      
+
       // Create profile on backend
-      const response = await apiRequest<{ profileId: string }>("POST", "/api/profile", data);
-      
+      const res = await apiRequest("POST", "/api/profile", data);
+      const json = await res.json();
+
+      if (!json || !json.profileId) {
+        throw new Error("Invalid response from server: missing profileId");
+      }
+
       // Save the returned profile ID
-      saveProfileId(response.profileId);
-      
-      // Navigate to dashboard
+      saveProfileId(json.profileId);
+
+      // Stop submitting and navigate to dashboard
+      setIsSubmitting(false);
       setLocation("/dashboard");
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -95,17 +103,16 @@ export default function Onboarding() {
               const Icon = step.icon;
               const isActive = currentStep === step.id;
               const isComplete = currentStep > step.id;
-              
+
               return (
                 <div key={step.id} className="flex flex-col items-center flex-1">
                   <div
-                    className={`h-10 w-10 rounded-full flex items-center justify-center mb-2 transition-colors ${
-                      isActive
+                    className={`h-10 w-10 rounded-full flex items-center justify-center mb-2 transition-colors ${isActive
                         ? "bg-primary text-primary-foreground"
                         : isComplete
-                        ? "bg-primary/20 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    }`}
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
                   >
                     <Icon className="h-5 w-5" />
                   </div>
@@ -254,9 +261,8 @@ export default function Onboarding() {
                             {["Weight Loss", "Muscle Gain", "General Fitness", "Endurance", "Strength"].map((goal) => (
                               <Card
                                 key={goal}
-                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${
-                                  field.value === goal ? "border-primary border-2" : ""
-                                }`}
+                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${field.value === goal ? "border-primary border-2" : ""
+                                  }`}
                                 onClick={() => field.onChange(goal)}
                                 data-testid={`card-goal-${goal.toLowerCase().replace(" ", "-")}`}
                               >
@@ -281,9 +287,8 @@ export default function Onboarding() {
                             {["Beginner", "Intermediate", "Advanced"].map((level) => (
                               <Card
                                 key={level}
-                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${
-                                  field.value === level ? "border-primary border-2" : ""
-                                }`}
+                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${field.value === level ? "border-primary border-2" : ""
+                                  }`}
                                 onClick={() => field.onChange(level)}
                                 data-testid={`card-level-${level.toLowerCase()}`}
                               >
@@ -293,6 +298,43 @@ export default function Onboarding() {
                               </Card>
                             ))}
                           </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="stressLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Daily Stress Level</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Low">Low</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                              <SelectItem value="High">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="medicalHistory"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Medical History / Injuries (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Lower back pain, Asthma" {...field} value={field.value || ""} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -313,9 +355,8 @@ export default function Onboarding() {
                             {["Home", "Gym", "Outdoor", "Mixed"].map((location) => (
                               <Card
                                 key={location}
-                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${
-                                  field.value === location ? "border-primary border-2" : ""
-                                }`}
+                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${field.value === location ? "border-primary border-2" : ""
+                                  }`}
                                 onClick={() => field.onChange(location)}
                                 data-testid={`card-location-${location.toLowerCase()}`}
                               >
@@ -345,9 +386,8 @@ export default function Onboarding() {
                             {["Non-Vegetarian", "Vegetarian", "Vegan", "Pescatarian", "Keto", "Paleo"].map((diet) => (
                               <Card
                                 key={diet}
-                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${
-                                  field.value === diet ? "border-primary border-2" : ""
-                                }`}
+                                className={`cursor-pointer transition-all hover-elevate active-elevate-2 ${field.value === diet ? "border-primary border-2" : ""
+                                  }`}
                                 onClick={() => field.onChange(diet)}
                                 data-testid={`card-diet-${diet.toLowerCase()}`}
                               >

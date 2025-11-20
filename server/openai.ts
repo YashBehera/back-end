@@ -13,6 +13,9 @@ export async function generateWorkoutPlan(userProfile: {
   fitnessGoal: string;
   fitnessLevel: string;
   workoutLocation: string;
+  medicalHistory: string,
+  stressLevel: string,
+  
 }): Promise<any> {
   try {
     const prompt = `You are an expert fitness coach. Generate a personalized 7-day workout plan for the following user:
@@ -25,6 +28,14 @@ Weight: ${userProfile.weight}kg
 Fitness Goal: ${userProfile.fitnessGoal}
 Fitness Level: ${userProfile.fitnessLevel}
 Workout Location: ${userProfile.workoutLocation}
+Fitness Level: ${userProfile.fitnessLevel}
+Workout Location: ${userProfile.workoutLocation}
+Medical History/Injuries: ${userProfile.medicalHistory || "None"}
+Stress Level: ${userProfile.stressLevel || "Normal"}
+
+IMPORTANT: Take the user's medical history and stress level into account. 
+If they have high stress, suggest stress-relief exercises. 
+If they have injuries, avoid dangerous movements for that area.
 
 Please create a comprehensive weekly workout plan with the following structure:
 - Provide an overview (2-3 sentences) explaining the plan's approach
@@ -73,14 +84,24 @@ Respond in JSON format with this exact structure:
     if (!content) {
       throw new Error("No content received from OpenAI");
     }
-    
-    const result = JSON.parse(content);
-    
+
+    let result: any;
+    if (typeof content === "string") {
+      try {
+        result = JSON.parse(content);
+      } catch (e) {
+        throw new Error("Received invalid JSON string from OpenAI");
+      }
+    } else {
+      // already an object (response_format: json_object)
+      result = content;
+    }
+
     // Validate the response structure
     if (!result.overview || !result.weeklyPlan || !Array.isArray(result.weeklyPlan)) {
       throw new Error("Invalid workout plan structure received from AI");
     }
-    
+
     return result;
   } catch (error) {
     console.error("Error generating workout plan:", error);
@@ -110,6 +131,7 @@ Height: ${userProfile.height}cm
 Weight: ${userProfile.weight}kg
 Fitness Goal: ${userProfile.fitnessGoal}
 Dietary Preference: ${userProfile.dietaryPreference}
+
 
 Please create a comprehensive weekly diet plan with the following structure:
 - Provide an overview (2-3 sentences) explaining the nutrition approach
@@ -160,14 +182,23 @@ Respond in JSON format with this exact structure:
     if (!content) {
       throw new Error("No content received from OpenAI");
     }
-    
-    const result = JSON.parse(content);
-    
+
+    let result: any;
+    if (typeof content === "string") {
+      try {
+        result = JSON.parse(content);
+      } catch (e) {
+        throw new Error("Received invalid JSON string from OpenAI");
+      }
+    } else {
+      result = content;
+    }
+
     // Validate the response structure
     if (!result.overview || !result.totalDailyCalories || !result.weeklyPlan || !Array.isArray(result.weeklyPlan)) {
       throw new Error("Invalid diet plan structure received from AI");
     }
-    
+
     return result;
   } catch (error) {
     console.error("Error generating diet plan:", error);
@@ -184,7 +215,7 @@ export async function generateImage(
 ): Promise<{ url: string }> {
   try {
     let prompt = "";
-    
+
     if (itemType === "exercise") {
       prompt = `High-quality photorealistic image of a fit athlete performing ${itemName} with perfect form in a clean, modern gym. Full body visible, correct posture, proper biomechanics, natural lighting, realistic muscles, DSLR 50mm lens, sharp details, dynamic angle, cinematic 4K shot, no text, no watermark, hyperrealistic training photoshoot style.`;
     } else {
@@ -199,11 +230,11 @@ export async function generateImage(
       quality: "standard",
     });
 
-    const imageUrl = response.data[0]?.url;
+    const imageUrl = response && Array.isArray((response as any).data) && (response as any).data.length > 0 ? (response as any).data[0]?.url : undefined;
     if (!imageUrl) {
       throw new Error("No image URL received from DALL-E");
     }
-    
+
     return { url: imageUrl };
   } catch (error) {
     console.error("Error generating image:", error);
@@ -211,5 +242,66 @@ export async function generateImage(
       throw new Error(`Failed to generate image: ${error.message}`);
     }
     throw new Error("Failed to generate image");
+  }
+}
+
+export async function generateMotivation(
+  name: string,
+  goal: string
+): Promise<{ quote: string; author: string }> {
+  try {
+    const prompt = `Generate a short, powerful motivational quote specifically for a user named "${name}" who wants to achieve the fitness goal: "${goal}".
+    
+    The quote should be inspiring, energetic, and personalized if possible.
+    
+    Respond in JSON format with this exact structure:
+    {
+      "quote": "The actual quote text",
+      "author": "The author name (or 'AI Coach' if generated)"
+    }`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5", // Keeping consistent with your existing configuration
+      messages: [
+        {
+          role: "system",
+          content: "You are a high-energy fitness motivator. Always respond with valid JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("No content received from OpenAI");
+    }
+
+    let result: any;
+    if (typeof content === "string") {
+      try {
+        result = JSON.parse(content);
+      } catch (e) {
+        throw new Error("Received invalid JSON string from OpenAI");
+      }
+    } else {
+      result = content;
+    }
+
+    // Validate response structure
+    if (!result.quote || !result.author) {
+      throw new Error("Invalid motivation structure received from AI");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error generating motivation:", error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to generate motivation: ${error.message}`);
+    }
+    throw new Error("Failed to generate motivation");
   }
 }

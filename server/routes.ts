@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateWorkoutPlan, generateDietPlan, generateImage } from "./openai";
+import { generateWorkoutPlan, generateDietPlan, generateImage , generateMotivation } from "./openai";
 import { insertUserProfileSchema, generatePlanSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -146,6 +146,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating image:", error);
       res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
+  // Generate Motivation Quote
+  app.post("/api/motivation", async (req, res) => {
+    try {
+      const { name, fitnessGoal } = req.body;
+      
+      if (!name || !fitnessGoal) {
+        return res.status(400).json({ error: "Name and fitness goal are required" });
+      }
+      
+      // Import this function at the top of server/routes.ts first:
+      // import { generateWorkoutPlan, generateDietPlan, generateImage, generateMotivation } from "./openai";
+      const quoteData = await generateMotivation(name, fitnessGoal);
+      
+      res.json(quoteData);
+    } catch (error) {
+      console.error("Error generating motivation:", error);
+      const message = error instanceof Error ? error.message : "Failed to generate motivation";
+      res.status(500).json({ error: message });
     }
   });
 
